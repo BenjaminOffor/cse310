@@ -35,7 +35,7 @@ It runs in a web browser and demonstrates understanding of JavaScript basics: va
 [Insert Zoom or video link here]
 
 ## GitHub Repository
-[Insert GitHub repository link here]
+https://github.com/BenjaminOffor/cse310
 
 ## Challenges and Learnings
 - Learned to structure JavaScript functions for logic flow
