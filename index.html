@@ -4,12 +4,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>JavaScript Quiz Program</title>
-  <link rel="stylesheet" href="style.css">
+  <!-- SweetAlert2 Library -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>JavaScript Quiz</h1>
-  <div id="quiz"></div>
-  <script src="script.js"></script>
+  <header>
+    <h1>JavaScript Quiz Program</h1>
+  </header>
+
+  <main>
+    <div id="quiz-container">
+      <div id="quiz"></div>
+      <div id="result"></div>
+    </div>
+  </main>
+
+  <script src="quiz.js"></script>
 </body>
 </html>
