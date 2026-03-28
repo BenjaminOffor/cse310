@@ -22,4 +22,4 @@ git clone https://github.com/BenjaminOffor/cse310.git
 2. The score will display in a popup at the end.
 
 ## Video Demo
-[Insert Zoom Video Link Here]
+https://www.youtube.com/watch?v=oS--WGhH5ww
