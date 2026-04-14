@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Quiz Admin Panel</title>
+
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    input { display: block; margin: 8px 0; padding: 8px; width: 300px; }
+    button { padding: 8px 15px; cursor: pointer; margin: 5px; }
+    .card {
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin: 10px 0;
+    }
+  </style>
+
+  <!-- LOGIN PROTECTION -->
+  <script>
+    if (localStorage.getItem("isAdmin") !== "true") {
+      alert("Access denied. Please login first.");
+      window.location.href = "login.html";
+    }
+  </script>
+</head>
+
+<body>
+
+  <h1>Quiz Admin Panel (CRUD)</h1>
+
+  <!-- CREATE SECTION -->
+  <h3>Add Question</h3>
+
+  <input type="number" id="batch" placeholder="Batch">
+  <input type="text" id="question" placeholder="Question">
+  <input type="text" id="option1" placeholder="Option 1">
+  <input type="text" id="option2" placeholder="Option 2">
+  <input type="text" id="option3" placeholder="Option 3">
+  <input type="text" id="option4" placeholder="Option 4">
+  <input type="text" id="correct" placeholder="Correct Answer">
+
+  <button onclick="submitQuestion()">Add Question</button>
+
+  <p id="msg"></p>
+
+  <button onclick="logout()">Logout</button>
+
+  <hr>
+
+  <!-- READ SECTION -->
+  <h2>All Questions</h2>
+  <div id="questionList"></div>
+
+  <script>
+
+    const API = "/questions";
+
+    // ======================
+    // CREATE
+    // ======================
+    function submitQuestion() {
+      const data = {
+        batch: document.getElementById("batch").value,
+        question: document.getElementById("question").value,
+        option1: document.getElementById("option1").value,
+        option2: document.getElementById("option2").value,
+        option3: document.getElementById("option3").value,
+        option4: document.getElementById("option4").value,
+        correct_option: document.getElementById("correct").value
+      };
+
+      fetch(API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      })
+      .then(res => res.json())
+      .then(() => {
+        document.getElementById("msg").innerText = "Question added successfully!";
+        loadQuestions();
+      });
+    }
+
+    // ======================
+    // READ
+    // ======================
+    function loadQuestions() {
+      fetch(API)
+        .then(res => res.json())
+        .then(data => {
+          const list = document.getElementById("questionList");
+          list.innerHTML = "";
+
+          data.forEach(q => {
+            list.innerHTML += `
+              <div class="card">
+                <b>[Batch ${q.batch}]</b><br><br>
+                ${q.question}<br><br>
+
+                A: ${q.option1}<br>
+                B: ${q.option2}<br>
+                C: ${q.option3}<br>
+                D: ${q.option4}<br><br>
+
+                <b>Answer:</b> ${q.correct_option}<br><br>
+
+                <button onclick="editQuestion(${q.id})">Edit</button>
+                <button onclick="deleteQuestion(${q.id})">Delete</button>
+              </div>
+            `;
+          });
+        });
+    }
+
+    // ======================
+    // DELETE
+    // ======================
+    function deleteQuestion(id) {
+      fetch(`${API}/${id}`, {
+        method: "DELETE"
+      })
+      .then(() => loadQuestions());
+    }
+
+    // ======================
+    // UPDATE
+    // ======================
+    function editQuestion(id) {
+      const newQuestion = prompt("Enter new question text:");
+
+      if (!newQuestion) return;
+
+      fetch(API)
+        .then(res => res.json())
+        .then(data => {
+          const q = data.find(item => item.id === id);
+
+          fetch(`${API}/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              batch: q.batch,
+              question: newQuestion,
+              option1: q.option1,
+              option2: q.option2,
+              option3: q.option3,
+              option4: q.option4,
+              correct_option: q.correct_option
+            })
+          })
+          .then(() => loadQuestions());
+        });
+    }
+
+    // ======================
+    // LOGOUT
+    // ======================
+    function logout() {
+      localStorage.removeItem("isAdmin");
+      window.location.href = "login.html";
+    }
+
+    // ======================
+    // INIT
+    // ======================
+    loadQuestions();
+
+  </script>
+
+</body>
+</html>
