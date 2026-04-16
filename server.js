@@ -15,9 +15,9 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
 // ======================
-// DATABASE (SQLite - Render safe)
+// DATABASE (FIXED FOR RENDER)
 // ======================
-const db = new Database('./quiz.db');
+const db = new Database(path.join(__dirname, 'quiz.db'));
 
 // ======================
 // INIT DATABASE
