@@ -15,9 +15,12 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
 // ======================
-// DATABASE (FIXED FOR RENDER)
+// DATABASE (Render-safe)
 // ======================
-const db = new Database(path.join(__dirname, 'quiz.db'));
+const dbPath = path.join(__dirname, 'quiz.db');
+console.log("Using DB at:", dbPath);
+
+const db = new Database(dbPath);
 
 // ======================
 // INIT DATABASE
@@ -37,22 +40,29 @@ db.prepare(`
   )
 `).run();
 
-// Seed database safely
-const count = db.prepare("SELECT COUNT(*) as count FROM questions").get();
+// ======================
+// SEED DATA (SAFE + DEBUGGED)
+// ======================
+try {
+  const count = db.prepare("SELECT COUNT(*) as count FROM questions").get();
+  console.log("Current question count:", count.count);
 
-if (!count || count.count === 0) {
-  console.log("Seeding database...");
+  if (!count || count.count === 0) {
+    console.log("Seeding database...");
 
-  db.prepare(`
-    INSERT INTO questions (batch, question, option1, option2, option3, option4, correct_option)
-    VALUES
-    (1, 'What does HTML stand for?', 'HyperText Markup Language', 'Hyper Trainer Markup Language', 'Home Tool Markup Language', 'Hyperlink Tool Machine Language', 'HyperText Markup Language'),
-    (1, 'Which language runs in the browser?', 'Java', 'C', 'Python', 'JavaScript', 'JavaScript'),
-    (2, 'Which keyword creates a class?', 'function', 'class', 'object', 'module', 'class'),
-    (2, 'What is NaN in JavaScript?', 'Not a Number', 'Null', 'Undefined', 'None', 'Not a Number')
-  `).run();
+    db.prepare(`
+      INSERT INTO questions (batch, question, option1, option2, option3, option4, correct_option)
+      VALUES
+      (1, 'What does HTML stand for?', 'HyperText Markup Language', 'Hyper Trainer Markup Language', 'Home Tool Markup Language', 'Hyperlink Tool Machine Language', 'HyperText Markup Language'),
+      (1, 'Which language runs in the browser?', 'Java', 'C', 'Python', 'JavaScript', 'JavaScript'),
+      (2, 'Which keyword creates a class?', 'function', 'class', 'object', 'module', 'class'),
+      (2, 'What is NaN in JavaScript?', 'Not a Number', 'Null', 'Undefined', 'None', 'Not a Number')
+    `).run();
 
-  console.log("Sample questions inserted");
+    console.log("Sample questions inserted");
+  }
+} catch (err) {
+  console.log("DB seed error:", err.message);
 }
 
 // ======================
@@ -178,7 +188,7 @@ app.delete('/questions/:id', (req, res) => {
 });
 
 // ======================
-// START SERVER (RENDER SAFE)
+// START SERVER
 // ======================
 const PORT = process.env.PORT || 3000;
 
