@@ -11,7 +11,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Serve frontend files
+// Serve static files (HTML, CSS, JS)
 app.use(express.static(path.join(__dirname)));
 
 // ======================
@@ -25,8 +25,6 @@ const db = new Database(dbPath);
 // ======================
 // INIT DATABASE
 // ======================
-
-// Create table if not exists
 db.prepare(`
   CREATE TABLE IF NOT EXISTS questions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -41,13 +39,13 @@ db.prepare(`
 `).run();
 
 // ======================
-// SEED DATA (SAFE + DEBUGGED)
+// SEED DATA
 // ======================
 try {
-  const count = db.prepare("SELECT COUNT(*) as count FROM questions").get();
-  console.log("Current question count:", count.count);
+  const existing = db.prepare("SELECT 1 FROM questions LIMIT 1").get();
+  console.log("DB initialized");
 
-  if (!count || count.count === 0) {
+  if (!existing) {
     console.log("Seeding database...");
 
     db.prepare(`
@@ -66,10 +64,29 @@ try {
 }
 
 // ======================
-// ROUTES
+// PAGE ROUTES (🔥 IMPORTANT FIX)
 // ======================
 
-// LOGIN
+// Login page
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'login.html'));
+});
+
+// Admin page
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
+// Optional home route
+app.get('/', (req, res) => {
+  res.send("Quiz API running");
+});
+
+// ======================
+// API ROUTES
+// ======================
+
+// LOGIN API
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
 
@@ -77,13 +94,13 @@ app.post('/login', (req, res) => {
   const adminPass = "1234";
 
   if (username === adminUser && password === adminPass) {
-    return res.json({ success: true, message: "Login successful" });
+    return res.json({ success: true });
   }
 
-  return res.status(401).json({ success: false, message: "Invalid credentials" });
+  return res.status(401).json({ success: false });
 });
 
-// GET ALL QUESTIONS
+// GET QUESTIONS
 app.get('/questions', (req, res) => {
   try {
     const rows = db.prepare("SELECT * FROM questions").all();
@@ -95,93 +112,44 @@ app.get('/questions', (req, res) => {
 
 // ADD QUESTION
 app.post('/questions', (req, res) => {
-  const {
-    batch,
-    question,
-    option1,
-    option2,
-    option3,
-    option4,
-    correct_option
-  } = req.body;
+  const { batch, question, option1, option2, option3, option4, correct_option } = req.body;
 
   try {
-    const stmt = db.prepare(`
+    const info = db.prepare(`
       INSERT INTO questions
       (batch, question, option1, option2, option3, option4, correct_option)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
+    `).run(batch, question, option1, option2, option3, option4, correct_option);
 
-    const info = stmt.run(
-      batch,
-      question,
-      option1,
-      option2,
-      option3,
-      option4,
-      correct_option
-    );
-
-    res.json({
-      message: "Question added successfully",
-      id: info.lastInsertRowid
-    });
-
+    res.json({ message: "Added", id: info.lastInsertRowid });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// UPDATE QUESTION
+// UPDATE
 app.put('/questions/:id', (req, res) => {
   const { id } = req.params;
-  const {
-    batch,
-    question,
-    option1,
-    option2,
-    option3,
-    option4,
-    correct_option
-  } = req.body;
+  const { batch, question, option1, option2, option3, option4, correct_option } = req.body;
 
   try {
     db.prepare(`
       UPDATE questions
-      SET batch = ?,
-          question = ?,
-          option1 = ?,
-          option2 = ?,
-          option3 = ?,
-          option4 = ?,
-          correct_option = ?
-      WHERE id = ?
-    `).run(
-      batch,
-      question,
-      option1,
-      option2,
-      option3,
-      option4,
-      correct_option,
-      id
-    );
+      SET batch=?, question=?, option1=?, option2=?, option3=?, option4=?, correct_option=?
+      WHERE id=?
+    `).run(batch, question, option1, option2, option3, option4, correct_option, id);
 
-    res.json({ message: "Question updated successfully" });
-
+    res.json({ message: "Updated" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// DELETE QUESTION
+// DELETE
 app.delete('/questions/:id', (req, res) => {
-  const { id } = req.params;
-
   try {
-    db.prepare("DELETE FROM questions WHERE id = ?").run(id);
-    res.json({ message: "Question deleted successfully" });
-
+    db.prepare("DELETE FROM questions WHERE id=?").run(req.params.id);
+    res.json({ message: "Deleted" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -192,6 +160,6 @@ app.delete('/questions/:id', (req, res) => {
 // ======================
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
