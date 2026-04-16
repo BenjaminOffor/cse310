@@ -1,5 +1,5 @@
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
+const Database = require('better-sqlite3');
 const cors = require('cors');
 const path = require('path');
 
@@ -14,45 +14,43 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
 // ======================
-// DATABASE
+// DATABASE (better-sqlite3)
 // ======================
-const db = new sqlite3.Database('./quiz.db');
+const db = new Database('./quiz.db');
 
 // ======================
 // INIT DB
 // ======================
-db.serialize(() => {
 
-  db.run(`
-    CREATE TABLE IF NOT EXISTS questions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      batch INTEGER,
-      question TEXT,
-      option1 TEXT,
-      option2 TEXT,
-      option3 TEXT,
-      option4 TEXT,
-      correct_option TEXT
-    )
-  `);
+// Create table
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS questions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    batch INTEGER,
+    question TEXT,
+    option1 TEXT,
+    option2 TEXT,
+    option3 TEXT,
+    option4 TEXT,
+    correct_option TEXT
+  )
+`).run();
 
-  db.get("SELECT COUNT(*) as count FROM questions", (err, row) => {
-    if (err) return console.log(err.message);
+// Seed data if empty
+const count = db.prepare("SELECT COUNT(*) as count FROM questions").get();
 
-    if (row.count === 0) {
-      db.run(`
-        INSERT INTO questions (batch, question, option1, option2, option3, option4, correct_option)
-        VALUES
-        (1, 'What does HTML stand for?', 'HyperText Markup Language', 'Hyper Trainer Markup Language', 'Home Tool Markup Language', 'Hyperlink Tool Machine Language', 'HyperText Markup Language'),
-        (1, 'Which language runs in the browser?', 'Java', 'C', 'Python', 'JavaScript', 'JavaScript'),
-        (2, 'Which keyword creates a class?', 'function', 'class', 'object', 'module', 'class'),
-        (2, 'What is NaN in JavaScript?', 'Not a Number', 'Null', 'Undefined', 'None', 'Not a Number')
-      `);
+if (count.count === 0) {
+  db.prepare(`
+    INSERT INTO questions (batch, question, option1, option2, option3, option4, correct_option)
+    VALUES
+    (1, 'What does HTML stand for?', 'HyperText Markup Language', 'Hyper Trainer Markup Language', 'Home Tool Markup Language', 'Hyperlink Tool Machine Language', 'HyperText Markup Language'),
+    (1, 'Which language runs in the browser?', 'Java', 'C', 'Python', 'JavaScript', 'JavaScript'),
+    (2, 'Which keyword creates a class?', 'function', 'class', 'object', 'module', 'class'),
+    (2, 'What is NaN in JavaScript?', 'Not a Number', 'Null', 'Undefined', 'None', 'Not a Number')
+  `).run();
 
-      console.log("Sample questions inserted");
-    }
-  });
-});
+  console.log("Sample questions inserted");
+}
 
 // ======================
 // ROUTES
@@ -74,10 +72,12 @@ app.post('/login', (req, res) => {
 
 // GET QUESTIONS
 app.get('/questions', (req, res) => {
-  db.all("SELECT * FROM questions", [], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
+  try {
+    const rows = db.prepare("SELECT * FROM questions").all();
     res.json(rows);
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ADD QUESTION
@@ -92,23 +92,31 @@ app.post('/questions', (req, res) => {
     correct_option
   } = req.body;
 
-  const sql = `
-    INSERT INTO questions
-    (batch, question, option1, option2, option3, option4, correct_option)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `;
+  try {
+    const stmt = db.prepare(`
+      INSERT INTO questions
+      (batch, question, option1, option2, option3, option4, correct_option)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
 
-  db.run(sql,
-    [batch, question, option1, option2, option3, option4, correct_option],
-    function (err) {
-      if (err) return res.status(500).json({ error: err.message });
+    const info = stmt.run(
+      batch,
+      question,
+      option1,
+      option2,
+      option3,
+      option4,
+      correct_option
+    );
 
-      res.json({
-        message: "Question added successfully",
-        id: this.lastID
-      });
-    }
-  );
+    res.json({
+      message: "Question added successfully",
+      id: info.lastInsertRowid
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // UPDATE QUESTION
@@ -124,42 +132,53 @@ app.put('/questions/:id', (req, res) => {
     correct_option
   } = req.body;
 
-  const sql = `
-    UPDATE questions
-    SET batch = ?,
-        question = ?,
-        option1 = ?,
-        option2 = ?,
-        option3 = ?,
-        option4 = ?,
-        correct_option = ?
-    WHERE id = ?
-  `;
+  try {
+    db.prepare(`
+      UPDATE questions
+      SET batch = ?,
+          question = ?,
+          option1 = ?,
+          option2 = ?,
+          option3 = ?,
+          option4 = ?,
+          correct_option = ?
+      WHERE id = ?
+    `).run(
+      batch,
+      question,
+      option1,
+      option2,
+      option3,
+      option4,
+      correct_option,
+      id
+    );
 
-  db.run(sql,
-    [batch, question, option1, option2, option3, option4, correct_option, id],
-    function (err) {
-      if (err) return res.status(500).json({ error: err.message });
+    res.json({ message: "Question updated successfully" });
 
-      res.json({ message: "Question updated successfully" });
-    }
-  );
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // DELETE QUESTION
 app.delete('/questions/:id', (req, res) => {
   const { id } = req.params;
 
-  db.run("DELETE FROM questions WHERE id = ?", [id], function (err) {
-    if (err) return res.status(500).json({ error: err.message });
-
+  try {
+    db.prepare("DELETE FROM questions WHERE id = ?").run(id);
     res.json({ message: "Question deleted successfully" });
-  });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ======================
-// START SERVER (LAST)
+// START SERVER (RENDER SAFE)
 // ======================
-app.listen(3000, () => {
-  console.log("Server running on http://localhost:3000");
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
 });
