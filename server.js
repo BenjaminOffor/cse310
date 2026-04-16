@@ -5,24 +5,25 @@ const path = require('path');
 
 const app = express();
 
+// ======================
+// MIDDLEWARE
+// ======================
 app.use(cors());
 app.use(express.json());
 
-// ======================
-// SERVE FRONTEND FILES
-// ======================
+// Serve frontend files
 app.use(express.static(path.join(__dirname)));
 
 // ======================
-// DATABASE (better-sqlite3)
+// DATABASE (SQLite - Render safe)
 // ======================
 const db = new Database('./quiz.db');
 
 // ======================
-// INIT DB
+// INIT DATABASE
 // ======================
 
-// Create table
+// Create table if not exists
 db.prepare(`
   CREATE TABLE IF NOT EXISTS questions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -36,10 +37,12 @@ db.prepare(`
   )
 `).run();
 
-// Seed data if empty
+// Seed database safely
 const count = db.prepare("SELECT COUNT(*) as count FROM questions").get();
 
-if (count.count === 0) {
+if (!count || count.count === 0) {
+  console.log("Seeding database...");
+
   db.prepare(`
     INSERT INTO questions (batch, question, option1, option2, option3, option4, correct_option)
     VALUES
@@ -64,13 +67,13 @@ app.post('/login', (req, res) => {
   const adminPass = "1234";
 
   if (username === adminUser && password === adminPass) {
-    res.json({ success: true, message: "Login successful" });
-  } else {
-    res.status(401).json({ success: false, message: "Invalid credentials" });
+    return res.json({ success: true, message: "Login successful" });
   }
+
+  return res.status(401).json({ success: false, message: "Invalid credentials" });
 });
 
-// GET QUESTIONS
+// GET ALL QUESTIONS
 app.get('/questions', (req, res) => {
   try {
     const rows = db.prepare("SELECT * FROM questions").all();
@@ -180,5 +183,5 @@ app.delete('/questions/:id', (req, res) => {
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
